@@ -1,0 +1,9 @@
+/Net-SinaWeibo*
+META.yml
+Makefile
+inc/
+pm_to_blib
+.build
+.DS_Store
+.perlcritic_history
+*~
