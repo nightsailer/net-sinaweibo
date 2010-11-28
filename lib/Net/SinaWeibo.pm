@@ -364,5 +364,160 @@ sub import {
 __END__
 
 =head1 SYNOPSIS
+    
+    my $app_key = 'xxxx';
+    my $app_key_secret = 'xxxxxxxxx';
+    my $client = Net::SinaWeibo->new(consumer_key => $app_key,$app_key_secret);
+    # authorization
+    my $callback_url = 'http://youdomain.com/app_callback';
+    my $url = $client->get_authorization_url(callback => $callback_url);
+    say 'Please goto this url:',$url;
+    # After user authorized,you got request_token
+    $client->get_access_token;
+    # save these tokens to your file.
+    $client->save_tokens '~/app/var/tokens/my.tokens';
+    # later,you can load tokens
+    $client->load_tokens '~/app/var/tokens/my.tokens';
+    # now you can visit any restricted resources.
+    my $friends = $client->friends;
+    # any api can pass amy specific parameters
+    my $latest_mentions = $client->mentions since_id => 25892384,count => 10,page => 1;
 
 =head1 DESCRIPTION
+
+This is a lightweit OAuth client for SinaWeibo. It is a sub class of <Net::OAuth::Simple>,
+you should check the methods of L<Net::OAuth::Simple/Method>.
+
+=head1 METHODS
+
+=head2 new(params)
+
+    my $client = Net::SinaWeibo->new(
+        consumer_key => 'sinaweibo_app_key',consumer_secret => 'sina_weibo_app_secret',
+        # optional,you can pass access_token
+        access_token => 'xxxxxx',
+        access_secret => 'xxxxxxxx',
+    );
+
+=head1 SinaWeibo API METHODS
+
+Follow are generated SinaWeibo API methods. 
+Recent document about these please visit L<http://open.t.sina.com.cn/wiki/>
+
+=over
+
+=item  public_timeline
+
+=item  home_timeline
+
+=item  friends_timeline
+
+=item  user_timeline
+
+=item  mentions
+
+=item  comments_timeline
+
+=item  comments_by_me
+
+=item  comments_to_me
+
+=item  comments
+
+=item  status_counts
+
+=item  status_unread
+
+=item  status_reset_count
+
+=item  emotions
+
+=item  show_status
+
+=item  update_status
+
+=item  upload_status
+
+=item  remove_status
+
+=item  repost_status
+
+=item  retweet
+
+=item  comment
+
+=item  remove_comment
+
+=item  batch_remove_comments
+
+=item  reply_comment
+
+=item  hot_users
+
+=item  show_user
+
+=item  friends
+
+=item  followers
+
+=item  dm
+
+=item  dm_sent
+
+=item  send_dm
+
+=item  remove_dm
+
+=item  batch_remove_dm
+
+=item  follow
+
+=item  unfollow
+
+=item  is_followed
+
+=item  get_friends_id_list
+
+=item  get_followers_id_list
+
+=item  update_privacy
+
+=item  get_privacy
+
+=item  block_user
+
+=item  unblock_user
+
+=item  is_blocked
+
+=item  blocking
+
+=item  blocking_id_list
+
+=item  tags
+
+=item  add_tag
+
+=item  tag_suggestions
+
+=item  remove_tag
+
+=item  batch_remove_tags
+
+=item  verify_credentials
+
+=item  rate_limit_status
+
+=item  end_session
+
+=item  update_profile
+
+=item  favorites
+
+=item  add_favorite
+
+=item  remove_favorite
+
+=item  batch_remove_favorites
+
+=back
