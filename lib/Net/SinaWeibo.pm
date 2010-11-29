@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use base 'Net::SinaWeibo::OAuth';
 use JSON;
-use Data::Dumper;
 use constant {
     SINA_SITE              =>  'http://api.t.sina.com.cn/',
     SINA_REQUEST_TOKEN_URL => 'http://api.t.sina.com.cn/oauth/request_token',
