@@ -2,8 +2,9 @@ package Net::SinaWeibo;
 # ABSTRACT: A simple and lightweight OAuth api for SinaWeibo(新浪微博)
 use strict;
 use warnings;
-use base qw(Net::OAuth::Simple);
+use base 'Net::SinaWeibo::OAuth';
 use JSON;
+use Data::Dumper;
 use constant {
     SINA_SITE              =>  'http://api.t.sina.com.cn/',
     SINA_REQUEST_TOKEN_URL => 'http://api.t.sina.com.cn/oauth/request_token',
@@ -11,18 +12,6 @@ use constant {
     SINA_ACCESS_TOKEN_URL  => 'http://api.t.sina.com.cn/oauth/access_token',
     SINA_FORMAT            => 'json',
 };
-
-sub new {
-     return shift->SUPER::new(
-             tokens => { @_ },
-             protocol_version => '1.0a',
-             urls => {
-                 request_token_url => SINA_REQUEST_TOKEN_URL,
-                 authorization_url => SINA_AUTHORIZATION_URL,
-                 access_token_url =>  SINA_ACCESS_TOKEN_URL,
-             },
-         );
-}
 # SINA SDK API
 our %SINA_API = (
     public_timeline => {
@@ -95,7 +84,7 @@ our %SINA_API = (
         method => 'GET',
         restricted => 1,
     },
-    update_status => {
+    post_status => {
         uri => 'statuses/update',
         method => 'POST',
         restricted => 1,
@@ -104,6 +93,7 @@ our %SINA_API = (
         uri => 'statuses/upload',
         method => 'POST',
         restricted => 1,
+        multi_part => 'pic',
     },
     remove_status => {
         uri => 'statuses/destroy',
@@ -285,11 +275,12 @@ our %SINA_API = (
         method => 'POST',
         restricted => 1,
     },
-    # update_profile_image => {
-    #     uri => 'account/update_profile_image',
-    #     method => 'POST',
-    #     restricted => 1,
-    # },
+    update_profile_image => {
+        uri => 'account/update_profile_image',
+        method => 'POST',
+        restricted => 1,
+        multi_part => 'image',
+    },
     update_profile => {
         uri => 'account/update_profile',
         method => 'POST',
@@ -317,43 +308,63 @@ our %SINA_API = (
     },
 );
 
-
-
-# workaround for Sina API, its response not exists this now.
-sub callback_confirmed { 1 }
-
-sub _build_url {
-    my (%params) = @_;
-    my $url = delete $params{url};
-    my $id  = delete $params{id};
-    return defined($id) ? (url => SINA_SITE.$url.'/'.($id).'.'.SINA_FORMAT)
-        : (url => SINA_SITE.$url.'.'.SINA_FORMAT);
+sub new {
+    my $class = shift;
+    my %args = @_;
+    my $client = $class->SUPER::new(
+        consumer_key => $args{app_key},
+        consumer_secret => $args{app_secret},
+        request_token_path => SINA_REQUEST_TOKEN_URL,
+        access_token_path => SINA_ACCESS_TOKEN_URL,
+        authorize_path => SINA_AUTHORIZATION_URL,
+        tokens => $args{tokens}
+        );
+    $client;
 }
+
+sub app_key { shift->consumer_key }
+
+sub app_secret { shift->consumer_secret }
 
 sub _build_api_proxy_sub {
     my ($api) = @_;
-    if ($api->{restricted}) {
-        return sub {
-             my $self = shift;
-             my %params = ( http_method => 'GET', _build_url(@_, url => $api->{uri}) );
-             my $response = $self->make_restricted_request(delete $params{url},$api->{method},@_);
-             decode_json $response->content;
-        }
-    }
-    else {
-        return sub {
-            my $self = shift;
-            my %params = ( http_method => 'GET', _build_url(@_,url => $api->{uri} ) );
-            my $response = $self->make_general_request(delete $params{url},$api->{method},@_);
-            decode_json $response->content;
-        }
-    }
+    return sub {
+         my $self = shift;
+         $self->{_last_api} = $api->{uri};
+         my %params = @_;
+         my $uri;
+         if (exists $params{id}) {
+            $uri = $api->{uri}.'/'.(delete $params{id});
+         }
+         else {
+            $uri = $api->{uri};
+         }
+         if ($api->{multi_part}) {
+             $params{'@'.$api->{multi_part}} = delete $params{ $api->{multi_part} };
+         }
+         my $content = $self->make_restricted_request($uri,$api->{method},%params);
+         decode_json $content;
+    };
 }
+
+sub last_api { shift->{_last_api} }
 
 sub status_url {
     my ($self,$user_id,$status_id) = @_;
 
-    return SINA_SITE.'/'.$user_id.'/statuses/'.$status_id;
+    return $self->{site}.'/'.$user_id.'/statuses/'.$status_id;
+}
+
+sub last_api_error {
+    my ($self) = @_;
+    my $error;
+    eval {
+        $error = decode_json($self->{_last_api_error});
+    };
+    if ($@) {
+        $error = $self->{_last_api_error};
+    }
+    return $error;
 }
 
 # auto compile api proxy method
@@ -370,44 +381,62 @@ __END__
 
 =head1 SYNOPSIS
     
+    # from sinaweibo app setting
     my $app_key = 'xxxx';
     my $app_key_secret = 'xxxxxxxxx';
-    my $client = Net::SinaWeibo->new(consumer_key => $app_key,$app_key_secret);
+    my $client = Net::SinaWeibo->new(consumer_key => $app_key,
+        consumer_secret => $app_key_secret);
     # authorization
     my $callback_url = 'http://youdomain.com/app_callback';
     my $url = $client->get_authorization_url(callback => $callback_url);
     say 'Please goto this url:',$url;
-    # After user authorized,you got request_token
-    $client->get_access_token;
+
     # save these tokens to your file.
-    $client->save_tokens '~/app/var/tokens/my.tokens';
+    Net::SinaWeibo->save_tokens('~/app/var/tokens/my.tokens',
+        consumer_key => $app_key,
+        consumer_secret => $app_key_secret,
+        request_token => $client->request_token,
+        request_token_secret => $client->request_token_secret,
+        );
+
     # later,you can load tokens
-    $client->load_tokens '~/app/var/tokens/my.tokens';
-    # now you can visit any restricted resources.
+    my %tokens = Net::SinaWeibo->load_tokens '~/app/var/tokens/my.tokens';
+    
+    # After user authorized,you can request access_token
+    my $client = Net::SinaWeibo->new(%tokens);
+    my $verifier = '5123876';
+    my ($access_token,$access_token_secret) = $client->request_access_token(
+        verifier => $verifier,
+        );
+
+    # now you can retrieve any restricted resources.
     my $friends = $client->friends;
     # any api can pass amy specific parameters
     my $latest_mentions = $client->mentions since_id => 25892384,count => 10,page => 1;
 
+
 =head1 DESCRIPTION
 
-This is a lite OAuth client for SinaWeibo(新浪微博). It's just a sub class of <Net::OAuth::Simple>,
-so you should also check L<Net::OAuth::Simple>.
+This is a lite OAuth client for SinaWeibo(新浪微博). 
 
 =head1 METHODS
 
 =head2 new(params)
 
     my $client = Net::SinaWeibo->new(
-        consumer_key => 'sinaweibo_app_key',consumer_secret => 'sina_weibo_app_secret',
-        # optional,you can pass access_token
-        access_token => 'xxxxxx',
-        access_secret => 'xxxxxxxx',
+        app_key => 'sinaweibo_app_key',
+        app_secret => 'sina_weibo_app_secret',
+        # optional,you can pass access_token/request_token
+        tokens => {
+            access_token => 'xxxxxx',
+            access_secret => 'xxxxxxxx',
+            # or
+            request_token => 'xxxxxxx',
+            request_token_secret => 'xxxxx',
+        }
     );
 
-
-Follow are some useful method list inherited from super C<Net::OAuth::Simple>.
-
-=head2 get_authorization_url [param[s]]
+=head2 get_authorization_url(%params)
 
 Get the URL to authorize a user as a URI object.
 
@@ -419,26 +448,42 @@ Returns the current oauth_verifier.
 
 Can optionally set a new verifier.
 
-=head2 request_request_token [param[s]]
+=head2 get_request_token
 
 Request the request token and request token secret for this user.
 
 This is called automatically by C<get_authorization_url> if necessary.
 
-If you pass in a hash of params then they will added as parameters to the URL.
 
-=head2 request_access_token [param[s]]
+=head2 get_access_token(%params)
 
-Request the access token and access token secret for this user.
+=head3 parameters
+
+=over
+
+=item verifier
+
+Verfication code which SinaWeibo returns.
+
+=item token
+
+Request token object. Optional, if you has been set request_token.
+
+=back
+
+    my $access_token = $sina->get_access_token(verifier => '589893');
+    # or
+    my $access_token = $sina->get_access_token(verifier => '589893',token => $request_token);
+
+Request the access token for this user.
 
 The user must have authorized this app at the url given by
 C<get_authorization_url> first.
 
-Returns the access token and access token secret but also sets
+Returns the access token but also sets
 them internally so that after calling this method you can
 immediately call a restricted method.
 
-If you pass in a hash of params then they will added as parameters to the URL.
 
 =head2 last_error
 
@@ -448,7 +493,19 @@ Only works if C<return_undef_on_error> was passed in to the constructor.
 
 See the section on B<ERROR HANDLING>.
 
+=head2 last_api
+
+Get the last called api(uri)
+
+=head2 last_api_error
+
+Get the last api error hash ref. If the error message is not any valid error response,
+will just return the raw response content.
+
+
 =head2 load_tokens <file>
+
+    my %tokens = Net::SinaWeibo->load_tokens('saved.tokens');
 
 A convenience method for loading tokens from a config file.
 
@@ -459,15 +516,24 @@ Returns an empty hash if the file doesn't exist.
 
 =cut
 
-=head2 save_tokens <file> [token[s]]
+=head2 save_tokens <file> [token[s] hash]
 
+    Net::SinaWeibo->save_tokens(
+        consumer_token => 'xxxx',
+        consumer_secret => 'xxxx',
+        request_token => 'xxxxxx',
+        request_token_secret => 'xxxxx',
+        access_token => 'xxxxx',
+        access_secret => 'xxxxx,
+    )
 A convenience method to save a hash of tokens out to the given file.
 
 =cut
 
 =head1 SinaWeibo API METHODS
 
-Follow are generated SinaWeibo API methods. 
+Follow are generated proxy method for SinaWeibo API. 
+
 Recent document about api please visit L<http://open.t.sina.com.cn/wiki/>
 
 =head2   public_timeline
@@ -613,7 +679,7 @@ L<http://open.t.sina.com.cn/wiki/index.php/Statuses/show>
 
 返回根据微博ID和用户ID生成的单条微博页面url
 
-=head2  update_status
+=head2  post_status
 
 发布一条微博信息
 
@@ -1043,6 +1109,14 @@ L<http://open.t.sina.com.cn/wiki/index.php/Account/end_session>
 
 
 L<http://open.t.sina.com.cn/wiki/index.php/Account/update_profile>
+
+=head2 update_profile_image
+
+更新用户头像
+
+image.必须参数. 必须为小于700K的有效的GIF, JPG, 或 PNG 图片. 如果图片大于500像素将按比例缩放。
+
+L<http://open.t.sina.com.cn/wiki/index.php/Account/update_profile_image>
 
 =head2  favorites
 

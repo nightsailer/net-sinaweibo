@@ -1,8 +1,9 @@
 use strict;
 use warnings;
-use Test::More tests => 58;
+use Test::More tests => 59;
 
 BEGIN {
+    use_ok('Net::SinaWeibo::OAuth');
     use_ok('Net::SinaWeibo');
 }
 foreach my $m (keys %Net::SinaWeibo::SINA_API) {
