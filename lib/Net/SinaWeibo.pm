@@ -1,5 +1,5 @@
 package Net::SinaWeibo;
-# ABSTRACT: A simple and lightweight OAuth api for SinaWeibo(新浪微博)
+# ABSTRACT: A simple and lightweight OAuth api for SinaWeibo
 use strict;
 use warnings;
 use base 'Net::SinaWeibo::OAuth';
@@ -367,28 +367,40 @@ __END__
     # from sinaweibo app setting
     my $app_key = 'xxxx';
     my $app_key_secret = 'xxxxxxxxx';
-    my $client = Net::SinaWeibo->new(consumer_key => $app_key,
-        consumer_secret => $app_key_secret);
+    my $client = Net::SinaWeibo->new(
+        app_key => $app_key,
+        app_key_secret => $app_key_secret);
     # authorization
     my $callback_url = 'http://youdomain.com/app_callback';
     my $url = $client->get_authorize_url(callback_url => $callback_url);
+    # or don't use callback_url,just like a desktop client.
+    my $url = $client->get_authorize_url;
+    # now $client hold the request_token, but you must authorize your app first.
+    # let user go to visit the authorize url.
     say 'Please goto this url:',$url;
 
     # save these tokens to your file.
     Net::SinaWeibo->save_tokens('~/app/var/tokens/my.tokens',
-        consumer_key => $app_key,
-        consumer_secret => $app_key_secret,
-        request_token => $client->request_token,
-        request_token_secret => $client->request_token_secret,
+        app_key => $app_key,
+        app_key_secret => $app_key_secret,
+        _request_token => $client->request_token->token,
+        _request_token_secret => $client->request_token->secret,
         );
 
     # later,you can load tokens
     my %tokens = Net::SinaWeibo->load_tokens '~/app/var/tokens/my.tokens';
 
-    # After user authorized,you can request access_token
-    my $client = Net::SinaWeibo->new(%tokens);
+    # After user authorized,you can request access_token with the request token
+    my $client = Net::SinaWeibo->new(
+        app_key => $tokens{app_key},
+        app_secret => $tokens{app_secret},
+        tokens => {
+            request_token => $tokens{_request_token},
+            request_token_secret => $tokens{_request_token_secret},
+        }
+    );
     my $verifier = '5123876';
-    my ($access_token,$access_token_secret) = $client->request_access_token(
+    my ($access_token,$access_token_secret) = $client->get_access_token(
         verifier => $verifier,
         );
 
@@ -396,6 +408,11 @@ __END__
     my $friends = $client->friends;
     # any api can pass amy specific parameters
     my $latest_mentions = $client->mentions since_id => 25892384,count => 10,page => 1;
+    # upload also support.
+    my $ok = $client->upload(status => 'Hello,this first image file', pic => 'images/demo.jpg');
+    # profile image
+    my $ok = update_profile_image(image => 'images/my_avatar.jpg');
+    # enjoy!
 
 
 =head1 DESCRIPTION
