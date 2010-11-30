@@ -8,6 +8,7 @@ use base 'OAuth::Lite::Consumer';
 use OAuth::Lite::AuthMethod qw(:all);
 use List::MoreUtils qw(any);
 use HTTP::Request::Common;
+use JSON;
 use OAuth::Lite::Util qw(normalize_params);
 use constant {
     SINA_SITE               =>  'http://api.t.sina.com.cn',
@@ -16,6 +17,10 @@ use constant {
     SINA_ACCESS_TOKEN_PATH  => '/oauth/access_token',
     SINA_FORMAT             => 'json',
 };
+__PACKAGE__->mk_accessors(qw(
+    last_api
+    last_api_error
+));
 sub new {
     my ($class,%args) = @_;
     my $tokens = delete $args{tokens};
@@ -57,11 +62,23 @@ sub make_restricted_request {
         params => \%params,
         multi_parts => { %multi_parts }
         );
+    my $content = $res->decoded_content || $res->content;
     unless ($res->is_success) {
-        croak $res->decoded_content || $res->content;
+        $self->_api_error($content);
+        croak $content;
     }
-    $res->decoded_content || $res->content;
+    decode_json($content);
 }
+sub _api_error {
+    my ($self,$error) = @_;
+    eval {
+        $self->last_api_error(decode_json($error));
+    };
+    if ($@) {
+        $self->last_api_error($error);
+    }
+}
+
 sub load_tokens {
     my $class  = shift;
     my $file   = shift;
@@ -99,18 +116,37 @@ sub save_tokens {
     }
     close($fh);
 }
+sub get_request_token {
+    my $self = shift;
+    my $res = $self->_get_request_token(@_);
+    unless ($res->is_success) {
+        return $self->error($res->status_line.',res:'.($res->decoded_content||$res->content));
+    }
+    my $token = OAuth::Lite::Token->from_encoded($res->decoded_content||$res->content);
+    # workaround for SinaWeibo BUG!!
+    # return $self->error(qq/oauth_callback_confirmed is not true/)
+    #     unless $token && $token->callback_confirmed;
+    $self->request_token($token);
+    $token;
+}
 
 sub get_authorize_url {
     my ($self,%args) = @_;
     my $token = $args{token} || $self->request_token;
     unless ($token) {
-        $token = $self->get_request_token or
-            Carp::croak "Can't find request token";
+        $token = $self->get_request_token(callback_url => $args{callback_url});
+        Carp::croak "Can't find request token,err:".$self->errstr unless $token;
     }
-    $args{token} = $token;
-    $self->url_to_authorize(%args);
+    my $url = $args{url} || $self->authorization_url;
+    my %params = ();
+    $params{oauth_token} = ( eval { $token->isa('OAuth::Lite::Token') } )
+        ? $token->token
+        : $token;
+    $params{oauth_callback} = $args{callback_url} if exists $args{callback_url};
+    $url = URI->new($url);
+    $url->query_form(%params);
+    $url->as_string;
 }
-
 # override method to support multipart-form
 sub gen_oauth_request {
 
@@ -138,16 +174,7 @@ sub gen_oauth_request {
         $extra = \%hash;
     }
     my $headers = $args{headers} || {};
-    # 
-    # if (defined $headers) {
-    #     if (ref($headers) eq 'ARRAY') {
-    #         $headers = HTTP::Headers->new(@$headers);
-    #     } else {
-    #         $headers = $headers->clone;
-    #     }
-    # } else {
-    #     $headers = HTTP::Headers->new;
-    # }
+
     croak 'headers is not valid HASH REF.' unless ref $headers eq 'HASH';
 
     my @send_data_methods = qw/POST PUT/;
@@ -155,51 +182,6 @@ sub gen_oauth_request {
 
     my $is_send_data_method = any { $method eq $_ } @send_data_methods;
 
-    # my $auth_method = $self->{auth_method};
-    # $auth_method = AUTH_HEADER
-    #     if ( !$is_send_data_method && $auth_method eq POST_BODY );
-    # 
-    # if ($auth_method eq URL_QUERY) {
-    #     if ( $is_send_data_method && !$content ) {
-    #         Carp::croak
-    #             qq(You must set content-body in case you use combination of URL_QUERY and POST/PUT http method);
-    #     } else {
-    #         if ( $is_send_data_method ) {
-    #             if ( my $hash = $self->build_body_hash($content) ) {
-    #                 $extra->{oauth_body_hash} = $hash;
-    #             }
-    #         }
-    #         my $query = $self->gen_auth_query($method, $url, $token, $extra);
-    #         $url = sprintf q{%s?%s}, $url, $query;
-    #     }
-    # } elsif ($auth_method eq POST_BODY) {
-    #     my $query = $self->gen_auth_query($method, $url, $token, $extra);
-    #     $content = $query;
-    #     $headers->header('Content-Type', q{application/x-www-form-urlencoded});
-    # } else {
-    #     my $origin_url = $url;
-    #     my $copied_params = {};
-    #     for my $param_key ( keys %$extra ) {
-    #         next if $param_key =~ /^x?oauth_/;
-    #         $copied_params->{$param_key} = $extra->{$param_key};
-    #     }
-    #     if ( keys %$copied_params > 0 ) {
-    #         my $data = normalize_params($copied_params);
-    #         if ( $is_send_data_method && !$content ) {
-    #             $content = $data;
-    #         } else {
-    #             $url = sprintf q{%s?%s}, $url, $data;
-    #         }
-    #     }
-    #     if ( $is_send_data_method ) {
-    #         if ( my $hash = $self->build_body_hash($content) ) {
-    #             $extra->{oauth_body_hash} = $hash;
-    #         }
-    #     }
-    #     my $header = $self->gen_auth_header($method, $origin_url,
-    #         { realm => $realm, token => $token, extra => $extra });
-    #     $headers->header( Authorization => $header );
-    # }
     my $origin_url = $url;
     my $copied_params = {};
     for my $param_key ( keys %$extra ) {
@@ -210,43 +192,25 @@ sub gen_oauth_request {
         my $data = normalize_params($copied_params);
         $url = sprintf q{%s?%s}, $url, $data unless $is_send_data_method;
     }
-    # if ( keys %$copied_params > 0 ) {
-    #     my $data = normalize_params($copied_params);
-    #     if ( $is_send_data_method && !$content ) {
-    #         $content = $data;
-    #     } else {
-    #         $url = sprintf q{%s?%s}, $url, $data;
-    #     }
-    # }
-    # if ( $is_send_data_method ) {
-    #     if ( my $hash = $self->build_body_hash($content) ) {
-    #         $extra->{oauth_body_hash} = $hash;
-    #     }
-    # }
+
     my $header = $self->gen_auth_header($method, $origin_url,
         { realm => $realm, token => $token, extra => $extra });
-    # $headers->header( Authorization => $header );
+
     $headers->{Authorization} = $header;
     if ($method eq 'GET') {
         GET $url,%$headers;
     }
     elsif ($method eq 'POST') {
         if ( keys %$multi_parts) {
-            POST $url,{ %$extra, %$multi_parts },'Content-Type' => 'form-data',%$headers;
+            POST $url,{ %$copied_params, %$multi_parts },'Content-Type' => 'form-data',%$headers;
         }
         else {
-            POST $url,$extra,%$headers;
+            POST $url,$copied_params,%$headers;
         }
     }
     else {
-        Carp::croak 'unsupport http_method:'.$method;
+        Carp::croak 'unsupported http_method:'.$method;
     }
-    # if ( $is_send_data_method ) {
-    #     $headers->header('Content-Type', q{application/x-www-form-urlencoded})
-    #         unless $headers->header('Content-Type');
-    #     $headers->header('Content-Length', bytes::length($content) );
-    # }
-    # $req = HTTP::Request->new( $method, $url, $headers, $content ); 
 }
 1;
 __END__

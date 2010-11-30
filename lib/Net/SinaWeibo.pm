@@ -329,7 +329,7 @@ sub _build_api_proxy_sub {
     my ($api) = @_;
     return sub {
          my $self = shift;
-         $self->{_last_api} = $api->{uri};
+         $self->last_api($api->{uri});
          my %params = @_;
          my $uri;
          if (exists $params{id}) {
@@ -341,31 +341,15 @@ sub _build_api_proxy_sub {
          if ($api->{multi_part}) {
              $params{'@'.$api->{multi_part}} = delete $params{ $api->{multi_part} };
          }
-         my $content = $self->make_restricted_request($uri,$api->{method},%params);
-         decode_json $content;
+         $self->make_restricted_request($uri,$api->{method},%params);
     };
 }
-
-sub last_api { shift->{_last_api} }
 
 sub status_url {
     my ($self,$user_id,$status_id) = @_;
 
     return $self->{site}.'/'.$user_id.'/statuses/'.$status_id;
 }
-
-sub last_api_error {
-    my ($self) = @_;
-    my $error;
-    eval {
-        $error = decode_json($self->{_last_api_error});
-    };
-    if ($@) {
-        $error = $self->{_last_api_error};
-    }
-    return $error;
-}
-
 # auto compile api proxy method
 sub import {
     shift;
@@ -387,7 +371,7 @@ __END__
         consumer_secret => $app_key_secret);
     # authorization
     my $callback_url = 'http://youdomain.com/app_callback';
-    my $url = $client->get_authorization_url(callback => $callback_url);
+    my $url = $client->get_authorize_url(callback_url => $callback_url);
     say 'Please goto this url:',$url;
 
     # save these tokens to your file.
@@ -435,11 +419,19 @@ This is a lite OAuth client for SinaWeibo(新浪微博).
         }
     );
 
-=head2 get_authorization_url(%params)
+=head2 get_authorize_url(%params)
+
+=head3 parameters
+
+=over
+
+=item callback_url
+
+Url which service provider redirect end-user to after authorization.
+
+=back
 
 Get the URL to authorize a user as a URI object.
-
-If you pass in a hash of params then they will added as parameters to the URL.
 
 =head2 verifier [verifier]
 
@@ -477,20 +469,11 @@ Request token object. Optional, if you has been set request_token.
 Request the access token for this user.
 
 The user must have authorized this app at the url given by
-C<get_authorization_url> first.
+C<get_authorize_url> first.
 
 Returns the access token but also sets
 them internally so that after calling this method you can
 immediately call a restricted method.
-
-
-=head2 last_error
-
-Get the last error message.
-
-Only works if C<return_undef_on_error> was passed in to the constructor.
-
-See the section on B<ERROR HANDLING>.
 
 =head2 last_api
 
@@ -500,7 +483,6 @@ Get the last called api(uri)
 
 Get the last api error hash ref. If the error message is not any valid error response,
 will just return the raw response content.
-
 
 =head2 load_tokens <file>
 
@@ -520,10 +502,10 @@ Returns an empty hash if the file doesn't exist.
     Net::SinaWeibo->save_tokens(
         consumer_token => 'xxxx',
         consumer_secret => 'xxxx',
-        request_token => 'xxxxxx',
-        request_token_secret => 'xxxxx',
-        access_token => 'xxxxx',
-        access_secret => 'xxxxx,
+        _request_token => 'xxxxxx',
+        _request_token_secret => 'xxxxx',
+        _access_token => 'xxxxx',
+        _access_secret => 'xxxxx,
     )
 A convenience method to save a hash of tokens out to the given file.
 
@@ -533,7 +515,7 @@ A convenience method to save a hash of tokens out to the given file.
 
 Follow are generated proxy method for SinaWeibo API. 
 
-Recent document about api please visit L<http://open.t.sina.com.cn/wiki/>
+Recent document please visit L<http://open.t.sina.com.cn/wiki/>
 
 =head2   public_timeline
 
