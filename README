@@ -6,93 +6,125 @@ VERSION
     version 0.001
 
 SYNOPSIS
+        # from sinaweibo app setting
         my $app_key = 'xxxx';
         my $app_key_secret = 'xxxxxxxxx';
-        my $client = Net::SinaWeibo->new(consumer_key => $app_key,$app_key_secret);
+        my $client = Net::SinaWeibo->new(consumer_key => $app_key,
+            consumer_secret => $app_key_secret);
         # authorization
         my $callback_url = 'http://youdomain.com/app_callback';
-        my $url = $client->get_authorization_url(callback => $callback_url);
+        my $url = $client->get_authorize_url(callback_url => $callback_url);
         say 'Please goto this url:',$url;
-        # After user authorized,you got request_token
-        $client->get_access_token;
+
         # save these tokens to your file.
-        $client->save_tokens '~/app/var/tokens/my.tokens';
+        Net::SinaWeibo->save_tokens('~/app/var/tokens/my.tokens',
+            consumer_key => $app_key,
+            consumer_secret => $app_key_secret,
+            request_token => $client->request_token,
+            request_token_secret => $client->request_token_secret,
+            );
+
         # later,you can load tokens
-        $client->load_tokens '~/app/var/tokens/my.tokens';
-        # now you can visit any restricted resources.
+        my %tokens = Net::SinaWeibo->load_tokens '~/app/var/tokens/my.tokens';
+
+        # After user authorized,you can request access_token
+        my $client = Net::SinaWeibo->new(%tokens);
+        my $verifier = '5123876';
+        my ($access_token,$access_token_secret) = $client->request_access_token(
+            verifier => $verifier,
+            );
+
+        # now you can retrieve any restricted resources.
         my $friends = $client->friends;
         # any api can pass amy specific parameters
         my $latest_mentions = $client->mentions since_id => 25892384,count => 10,page => 1;
 
 DESCRIPTION
-    This is a lite OAuth client for SinaWeibo(æ°æµªå¾®å). It's just a sub
-    class of <Net::OAuth::Simple>, so you should also check
-    Net::OAuth::Simple.
+    This is a lite OAuth client for SinaWeibo(æ°æµªå¾®å).
 
 METHODS
   new(params)
         my $client = Net::SinaWeibo->new(
-            consumer_key => 'sinaweibo_app_key',consumer_secret => 'sina_weibo_app_secret',
-            # optional,you can pass access_token
-            access_token => 'xxxxxx',
-            access_secret => 'xxxxxxxx',
+            app_key => 'sinaweibo_app_key',
+            app_secret => 'sina_weibo_app_secret',
+            # optional,you can pass access_token/request_token
+            tokens => {
+                access_token => 'xxxxxx',
+                access_secret => 'xxxxxxxx',
+                # or
+                request_token => 'xxxxxxx',
+                request_token_secret => 'xxxxx',
+            }
         );
 
-    Follow are some useful method list inherited from super
-    "Net::OAuth::Simple".
+  get_authorize_url(%params)
+   parameters
+    callback_url
+        Url which service provider redirect end-user to after authorization.
 
-  get_authorization_url [param[s]]
     Get the URL to authorize a user as a URI object.
-
-    If you pass in a hash of params then they will added as parameters to
-    the URL.
 
   verifier [verifier]
     Returns the current oauth_verifier.
 
     Can optionally set a new verifier.
 
-  request_request_token [param[s]]
+  get_request_token
     Request the request token and request token secret for this user.
 
     This is called automatically by "get_authorization_url" if necessary.
 
-    If you pass in a hash of params then they will added as parameters to
-    the URL.
+  get_access_token(%params)
+   parameters
+    verifier
+        Verfication code which SinaWeibo returns.
 
-  request_access_token [param[s]]
-    Request the access token and access token secret for this user.
+    token
+        Request token object. Optional, if you has been set request_token.
+
+        my $access_token = $sina->get_access_token(verifier => '589893');
+        # or
+        my $access_token = $sina->get_access_token(verifier => '589893',token => $request_token);
+
+    Request the access token for this user.
 
     The user must have authorized this app at the url given by
-    "get_authorization_url" first.
+    "get_authorize_url" first.
 
-    Returns the access token and access token secret but also sets them
-    internally so that after calling this method you can immediately call a
-    restricted method.
+    Returns the access token but also sets them internally so that after
+    calling this method you can immediately call a restricted method.
 
-    If you pass in a hash of params then they will added as parameters to
-    the URL.
+  last_api
+    Get the last called api(uri)
 
-  last_error
-    Get the last error message.
-
-    Only works if "return_undef_on_error" was passed in to the constructor.
-
-    See the section on ERROR HANDLING.
+  last_api_error
+    Get the last api error hash ref. If the error message is not any valid
+    error response, will just return the raw response content.
 
   load_tokens <file>
+        my %tokens = Net::SinaWeibo->load_tokens('saved.tokens');
+
     A convenience method for loading tokens from a config file.
 
     Returns a hash with the token names suitable for passing to "new()".
 
     Returns an empty hash if the file doesn't exist.
 
-  save_tokens <file> [token[s]]
+  save_tokens <file> [token[s] hash]
+        Net::SinaWeibo->save_tokens(
+            consumer_token => 'xxxx',
+            consumer_secret => 'xxxx',
+            _request_token => 'xxxxxx',
+            _request_token_secret => 'xxxxx',
+            _access_token => 'xxxxx',
+            _access_secret => 'xxxxx,
+        )
     A convenience method to save a hash of tokens out to the given file.
 
 SinaWeibo API METHODS
-    Follow are generated SinaWeibo API methods. Recent document about api
-    please visit <http://open.t.sina.com.cn/wiki/>
+    Follow are generated proxy method for SinaWeibo API.
+
+    Recent document please visit <http://open.t.sina.com.cn/wiki/>
 
   public_timeline
     返回最新更新的20条微博消息。
@@ -220,7 +252,7 @@ SinaWeibo API METHODS
   status_url($user_id,$status_id)
     返回根据微博ID和用户ID生成的单条微博页面url
 
-  update_status
+  post_status
     发布一条微博信息
 
         status. 必填参数， 要更新的微博信息。必须做URLEncode,信息内容不超过140个汉字,为空返回400错误。
@@ -590,6 +622,13 @@ SinaWeibo API METHODS
         description. 可选参数. 不超过160个汉字.
 
     <http://open.t.sina.com.cn/wiki/index.php/Account/update_profile>
+
+  update_profile_image
+    更新用户头像
+
+    image.必须参数. 必须为小于700K的有效的GIF, JPG, 或 PNG 图片. 如果图片大于500像素将按比例缩放。
+
+    <http://open.t.sina.com.cn/wiki/index.php/Account/update_profile_image>
 
   favorites
     获取当前用户的收藏列表

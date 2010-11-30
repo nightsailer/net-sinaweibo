@@ -4,6 +4,12 @@ use 5.010;
 use Data::Dumper;
 use Net::SinaWeibo;
 use Test::More;
+
+plan skip_all => 'Enviroment vars: SINA_APP_KEY / SINA_APP_SECRET not set!'
+    unless $ENV{SINA_APP_KEY} && $ENV{SINA_APP_SECRET};
+
+plan skip_all  => '00oauth.t not passed!' unless -e 't/test.tokens';
+
 # my %tokens = Net::SinaWeibo->load_tokens('t/test.tokens');
 # my $sina = Net::SinaWeibo->new(
 #     app_key => $tokens{app_key},

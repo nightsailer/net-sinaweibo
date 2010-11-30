@@ -384,7 +384,7 @@ __END__
 
     # later,you can load tokens
     my %tokens = Net::SinaWeibo->load_tokens '~/app/var/tokens/my.tokens';
-    
+
     # After user authorized,you can request access_token
     my $client = Net::SinaWeibo->new(%tokens);
     my $verifier = '5123876';

@@ -40,7 +40,7 @@ sub new {
     if ($tokens->{access_token} && $tokens->{access_token_secret}) {
         $self->access_token(OAuth::Lite::Token->new(
             token  => $tokens->{access_token},
-            secret => $tokens->{access_token_secret}, 
+            secret => $tokens->{access_token_secret},
             ));
     }
     $self;

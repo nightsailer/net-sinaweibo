@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 59;
+use Test::More tests => 60;
 
 BEGIN {
     use_ok('Net::SinaWeibo::OAuth');
