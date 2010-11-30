@@ -1,5 +1,7 @@
 Revision history for net-sinaweibo
 {{$NEXT}}
+
+0.002     Nov 30 2010
     - Nothing, just fix many doc/SYNOPSIS typo.
 0.001     Nov 30 2010
     - First public release, most api until 2010.11.28.
