@@ -360,6 +360,7 @@ sub import {
 }
 1;
 __END__
+
 =encoding utf-8
 
 =head1 SYNOPSIS
@@ -406,7 +407,7 @@ __END__
 
     # now you can retrieve any restricted resources.
     my $friends = $client->friends;
-    # any api can pass amy specific parameters
+    # any api can pass any specific parameters
     my $latest_mentions = $client->mentions since_id => 25892384,count => 10,page => 1;
     # upload also support.
     my $ok = $client->upload(status => 'Hello,this first image file', pic => 'images/demo.jpg');
@@ -417,7 +418,7 @@ __END__
 
 =head1 DESCRIPTION
 
-This is a lite OAuth client for SinaWeibo(新浪微博). 
+This is a lite OAuth client for SinaWeibo(http://t.sina.com.cn/).
 
 =head1 METHODS
 
@@ -460,7 +461,7 @@ Can optionally set a new verifier.
 
 Request the request token and request token secret for this user.
 
-This is called automatically by C<get_authorization_url> if necessary.
+This is called automatically by C<get_authorize_url> if necessary.
 
 
 =head2 get_access_token(%params)
@@ -918,7 +919,6 @@ L<http://open.t.sina.com.cn/wiki/index.php/Friendships/destroy>
 
 L<http://open.t.sina.com.cn/wiki/index.php/Friendships/show>
 
-
 =head2  get_friends_id_list
 
 获取用户关注对象uid列表
@@ -932,9 +932,6 @@ L<http://open.t.sina.com.cn/wiki/index.php/Friendships/show>
 如果没有提供cursor参数，将只返回最前面的5000个关注id
 
 L<http://open.t.sina.com.cn/wiki/index.php/Friends/ids>
-
-
-
 
 =head2  get_followers_id_list
 
@@ -1153,7 +1150,7 @@ L<http://open.t.sina.com.cn/wiki/index.php/Favorites/destroy_batch>
 
 The latest code for this module can be found at
 
-    L<http://github.com/nightsailer/net-sinaweibo.git>
+L<http://github.com/nightsailer/net-sinaweibo.git>
 
 =head1 SUPPORT
 
@@ -1165,7 +1162,9 @@ You can also look for information at:
 
 =over
 
-=item Issues tracker: L<http://github.com/nightsailer/net-sinaweibo/issues>
+=item Issues tracker: 
+
+L<http://github.com/nightsailer/net-sinaweibo/issues>
 
 =back
 
@@ -1181,8 +1180,8 @@ L<http://open.t.sina.com.cn/wiki/>
 
 L<http://oauth.net/>
 
-=item L<Net::OAuth>
+=item L<OAuth::Lite>
 
-=item L<Net::OAuth::Simple>
+=item L<Net::OAuth>
 
 =back
