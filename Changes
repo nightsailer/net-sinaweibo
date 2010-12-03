@@ -1,5 +1,7 @@
 Revision history for net-sinaweibo
 {{$NEXT}}
+
+0.003     Dec 03 2010
     - Add api_error_code,api_error_subcode
     - Fix some docs mistake.
 
