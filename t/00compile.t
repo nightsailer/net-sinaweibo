@@ -9,5 +9,3 @@ BEGIN {
 foreach my $m (keys %Net::SinaWeibo::SINA_API) {
     ok(Net::SinaWeibo->can($m),"compile api:$m");
 }
-
-

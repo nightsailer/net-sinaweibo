@@ -2,7 +2,7 @@ NAME
     Net::SinaWeibo - A simple and lightweight OAuth api for SinaWeibo
 
 VERSION
-    version 0.002
+    version 0.003
 
 SYNOPSIS
         # from sinaweibo app setting
@@ -47,7 +47,7 @@ SYNOPSIS
 
         # now you can retrieve any restricted resources.
         my $friends = $client->friends;
-        # any api can pass amy specific parameters
+        # any api can pass any specific parameters
         my $latest_mentions = $client->mentions since_id => 25892384,count => 10,page => 1;
         # upload also support.
         my $ok = $client->upload(status => 'Hello,this first image file', pic => 'images/demo.jpg');
@@ -56,7 +56,7 @@ SYNOPSIS
         # enjoy!
 
 DESCRIPTION
-    This is a lite OAuth client for SinaWeibo(æ°æµªå¾®å).
+    This is a lite OAuth client for SinaWeibo(http://t.sina.com.cn/).
 
 METHODS
   new(params)
@@ -66,7 +66,7 @@ METHODS
             # optional,you can pass access_token/request_token
             tokens => {
                 access_token => 'xxxxxx',
-                access_secret => 'xxxxxxxx',
+                access_token_secret => 'xxxxxxxx',
                 # or
                 request_token => 'xxxxxxx',
                 request_token_secret => 'xxxxx',
@@ -80,15 +80,10 @@ METHODS
 
     Get the URL to authorize a user as a URI object.
 
-  verifier [verifier]
-    Returns the current oauth_verifier.
-
-    Can optionally set a new verifier.
-
   get_request_token
     Request the request token and request token secret for this user.
 
-    This is called automatically by "get_authorization_url" if necessary.
+    This is called automatically by "get_authorize_url" if necessary.
 
   get_access_token(%params)
    parameters
@@ -126,6 +121,13 @@ METHODS
 
     Returns an empty hash if the file doesn't exist.
 
+  last_api_error_code
+    Get last api error_code, which return by provider. If provider reponse
+    is not valid JSON message, it's just the http status code.
+
+  last_api_error_subcode
+    Get detail error code about the api error (like 400 serial).
+
   save_tokens <file> [token[s] hash]
         Net::SinaWeibo->save_tokens(
             consumer_token => 'xxxx',
@@ -135,6 +137,7 @@ METHODS
             _access_token => 'xxxxx',
             _access_secret => 'xxxxx,
         )
+
     A convenience method to save a hash of tokens out to the given file.
 
 SinaWeibo API METHODS
@@ -180,11 +183,8 @@ SinaWeibo API METHODS
     获取@当前用户的微博列表
 
         since_id. 可选参数. 返回ID比数值since_id大（比since_id时间晚的）的提到。
-
         max_id. 可选参数. 返回ID不大于max_id(时间不晚于max_id)的提到。
-
         count. 可选参数. 每次返回的最大记录数（即页面大小），不大于200，默认为20。
-
         page. 可选参数. 返回结果的页序号。注意：有分页限制。
 
     <http://open.t.sina.com.cn/wiki/index.php/Statuses/mentions>
@@ -324,6 +324,7 @@ SinaWeibo API METHODS
         id. 必须参数. 要删除的评论ID.
 
     如果评论不存在，将返回403错误.
+
     <http://open.t.sina.com.cn/wiki/index.php/Statuses/comment_destroy>
 
   batch_remove_comments
@@ -346,9 +347,8 @@ SinaWeibo API METHODS
   hot_users
     获取系统推荐用户
 
-    <http://open.t.sina.com.cn/wiki/index.php/Users/hot>
-
         category: 分类，可选参数，返回某一类别的推荐用户，默认为 default。如果不在一下分类中，返回空列表：
+
             default:人气关注
             ent:影视名星
             hk_famous:港台名人
@@ -362,6 +362,8 @@ SinaWeibo API METHODS
             moderator:主持人
             medium:媒体总编
             stockplayer:炒股高手
+
+    <http://open.t.sina.com.cn/wiki/index.php/Users/hot>
 
   show_user
     根据用户ID获取用户资料（授权用户）
@@ -467,7 +469,10 @@ SinaWeibo API METHODS
   is_followed
     获取两个用户关系的详细情况
 
-    以下参数可不填写，如不填，则取当前用户 source_id. 源用户UID source_screen_name. 源微博昵称
+    以下参数可不填写，如不填，则取当前用户
+
+        source_id. 源用户UID
+        source_screen_name. 源微博昵称
 
     下面参数必须选填一个:
 
@@ -496,11 +501,11 @@ SinaWeibo API METHODS
   get_followers_id_list
     获取用户粉丝对象uid列表
 
-    id. 用户UID或微博昵称。 user_id.
-    指定用户UID,主要是用来区分用户UID跟微博昵称一样，产生歧义的时候，特别是在用户账号为数字导致和用户Uid发生歧义 screen_name.
-    指定微博昵称，主要是用来区分用户UID跟微博昵称一样，产生歧义的时候。 cursor. 选填参数.
-    单页只能包含100个关注列表，为了获取更多则cursor默认从-1开始，通过增加或减少cursor来获取更多,
-    如果没有下一页，则next_cursor返回0 count. 可选参数. 每次返回的最大记录数（即页面大小），不大于200,默认返回20。
+        id. 用户UID或微博昵称。
+        user_id. 指定用户UID,主要是用来区分用户UID跟微博昵称一样，产生歧义的时候，特别是在用户账号为数字导致和用户Uid发生歧义
+        screen_name. 指定微博昵称，主要是用来区分用户UID跟微博昵称一样，产生歧义的时候。
+        cursor. 选填参数. 单页只能包含100个关注列表，为了获取更多则cursor默认从-1开始，通过增加或减少cursor来获取更多, 如果没有下一页，则next_cursor返回0
+        count. 可选参数. 每次返回的最大记录数（即页面大小），不大于200,默认返回20。
 
     如果没有提供cursor参数，将只返回最前面的5000个粉丝id
 
@@ -677,7 +682,11 @@ SinaWeibo API METHODS
 DEVELOPERS
     The latest code for this module can be found at
 
-        L<http://github.com/nightsailer/net-sinaweibo.git>
+    <http://github.com/nightsailer/net-sinaweibo.git>
+
+    Author blog: (Chinese)
+
+    <http://nightsailer.com/>
 
 SUPPORT
     You can find documentation for this module with the perldoc command.
@@ -686,17 +695,16 @@ SUPPORT
 
     You can also look for information at:
 
-    Issues tracker: <http://github.com/nightsailer/net-sinaweibo/issues>
+    Issues tracker:
+        <http://github.com/nightsailer/net-sinaweibo/issues>
 
 SEE ALSO
     SinaWeibo Developer Site
         <http://open.t.sina.com.cn/wiki/>
 
-    OAuth
-        <http://oauth.net/>
-
+    OAuth <http://oauth.net/>
+    OAuth::Lite
     Net::OAuth
-    Net::OAuth::Simple
 
 AUTHOR
     Pan Fan(nightsailer) <nightsailer@gmail.com>

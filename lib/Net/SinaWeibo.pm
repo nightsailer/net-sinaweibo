@@ -430,7 +430,7 @@ This is a lite OAuth client for SinaWeibo(http://t.sina.com.cn/).
         # optional,you can pass access_token/request_token
         tokens => {
             access_token => 'xxxxxx',
-            access_secret => 'xxxxxxxx',
+            access_token_secret => 'xxxxxxxx',
             # or
             request_token => 'xxxxxxx',
             request_token_secret => 'xxxxx',
@@ -450,12 +450,6 @@ Url which service provider redirect end-user to after authorization.
 =back
 
 Get the URL to authorize a user as a URI object.
-
-=head2 verifier [verifier]
-
-Returns the current oauth_verifier.
-
-Can optionally set a new verifier.
 
 =head2 get_request_token
 
@@ -515,6 +509,17 @@ Returns an empty hash if the file doesn't exist.
 
 =cut
 
+=head2 last_api_error_code
+
+Get last api error_code, which return by provider. If provider reponse is
+not valid JSON message, it's just the http status code.
+
+
+=head2 last_api_error_subcode
+
+Get detail error code about the api error (like 400 serial).
+
+
 =head2 save_tokens <file> [token[s] hash]
 
     Net::SinaWeibo->save_tokens(
@@ -525,6 +530,7 @@ Returns an empty hash if the file doesn't exist.
         _access_token => 'xxxxx',
         _access_secret => 'xxxxx,
     )
+
 A convenience method to save a hash of tokens out to the given file.
 
 =cut
@@ -578,11 +584,8 @@ L<http://open.t.sina.com.cn/wiki/index.php/Statuses/user_timeline>
 获取@当前用户的微博列表
 
     since_id. 可选参数. 返回ID比数值since_id大（比since_id时间晚的）的提到。
-
     max_id. 可选参数. 返回ID不大于max_id(时间不晚于max_id)的提到。
-
     count. 可选参数. 每次返回的最大记录数（即页面大小），不大于200，默认为20。
-
     page. 可选参数. 返回结果的页序号。注意：有分页限制。
 
 L<http://open.t.sina.com.cn/wiki/index.php/Statuses/mentions>
@@ -608,7 +611,6 @@ L<http://open.t.sina.com.cn/wiki/index.php/Statuses/comments_timeline>
     page: 可选参数. 返回结果的页序号。注意：有分页限制。
 
 L<http://open.t.sina.com.cn/wiki/index.php/Statuses/comments_by_me>
-
 
 =head2  comments_to_me
 
@@ -742,6 +744,7 @@ L<http://open.t.sina.com.cn/wiki/index.php/Statuses/comment>
     id. 必须参数. 要删除的评论ID.
 
 如果评论不存在，将返回403错误.
+
 L<http://open.t.sina.com.cn/wiki/index.php/Statuses/comment_destroy>
 
 =head2  batch_remove_comments
@@ -762,15 +765,12 @@ L<http://open.t.sina.com.cn/wiki/index.php/Statuses/comment/destroy_batch>
 
 L<http://open.t.sina.com.cn/wiki/index.php/Statuses/reply>
 
-
 =head2  hot_users
 
 获取系统推荐用户
 
-
-L<http://open.t.sina.com.cn/wiki/index.php/Users/hot>
-
     category: 分类，可选参数，返回某一类别的推荐用户，默认为 default。如果不在一下分类中，返回空列表：
+
         default:人气关注
         ent:影视名星
         hk_famous:港台名人
@@ -785,6 +785,7 @@ L<http://open.t.sina.com.cn/wiki/index.php/Users/hot>
         medium:媒体总编
         stockplayer:炒股高手
 
+L<http://open.t.sina.com.cn/wiki/index.php/Users/hot>
 
 =head2  show_user
 
@@ -900,12 +901,12 @@ L<http://open.t.sina.com.cn/wiki/index.php/Friendships/create>
 
 L<http://open.t.sina.com.cn/wiki/index.php/Friendships/destroy>
 
-
 =head2  is_followed
 
 获取两个用户关系的详细情况
 
 以下参数可不填写，如不填，则取当前用户
+
     source_id. 源用户UID
     source_screen_name. 源微博昵称
 
@@ -937,11 +938,11 @@ L<http://open.t.sina.com.cn/wiki/index.php/Friends/ids>
 
 获取用户粉丝对象uid列表
 
-id. 用户UID或微博昵称。
-user_id. 指定用户UID,主要是用来区分用户UID跟微博昵称一样，产生歧义的时候，特别是在用户账号为数字导致和用户Uid发生歧义
-screen_name. 指定微博昵称，主要是用来区分用户UID跟微博昵称一样，产生歧义的时候。
-cursor. 选填参数. 单页只能包含100个关注列表，为了获取更多则cursor默认从-1开始，通过增加或减少cursor来获取更多, 如果没有下一页，则next_cursor返回0
-count. 可选参数. 每次返回的最大记录数（即页面大小），不大于200,默认返回20。
+    id. 用户UID或微博昵称。
+    user_id. 指定用户UID,主要是用来区分用户UID跟微博昵称一样，产生歧义的时候，特别是在用户账号为数字导致和用户Uid发生歧义
+    screen_name. 指定微博昵称，主要是用来区分用户UID跟微博昵称一样，产生歧义的时候。
+    cursor. 选填参数. 单页只能包含100个关注列表，为了获取更多则cursor默认从-1开始，通过增加或减少cursor来获取更多, 如果没有下一页，则next_cursor返回0
+    count. 可选参数. 每次返回的最大记录数（即页面大小），不大于200,默认返回20。
 
 如果没有提供cursor参数，将只返回最前面的5000个粉丝id
 
@@ -1152,6 +1153,11 @@ The latest code for this module can be found at
 
 L<http://github.com/nightsailer/net-sinaweibo.git>
 
+Author blog: (Chinese)
+
+L<http://nightsailer.com/>
+
+
 =head1 SUPPORT
 
 You can find documentation for this module with the perldoc command.
@@ -1176,9 +1182,7 @@ L<http://github.com/nightsailer/net-sinaweibo/issues>
 
 L<http://open.t.sina.com.cn/wiki/>
 
-=item OAuth
-
-L<http://oauth.net/>
+=item OAuth L<http://oauth.net/>
 
 =item L<OAuth::Lite>
 
