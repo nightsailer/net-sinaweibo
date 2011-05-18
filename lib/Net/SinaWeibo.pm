@@ -370,7 +370,7 @@ __END__
     my $app_key_secret = 'xxxxxxxxx';
     my $client = Net::SinaWeibo->new(
         app_key => $app_key,
-        app_key_secret => $app_key_secret);
+        app_secret => $app_key_secret);
     # authorization
     my $callback_url = 'http://youdomain.com/app_callback';
     my $url = $client->get_authorize_url(callback_url => $callback_url);
@@ -394,7 +394,7 @@ __END__
     # After user authorized,you can request access_token with the request token
     my $client = Net::SinaWeibo->new(
         app_key => $tokens{app_key},
-        app_secret => $tokens{app_secret},
+        app_secret => $tokens{app_key_secret},
         tokens => {
             request_token => $tokens{_request_token},
             request_token_secret => $tokens{_request_token_secret},
